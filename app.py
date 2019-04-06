@@ -1,12 +1,17 @@
+import os
 from flask import Flask, render_template, request, redirect, url_for, flash, \
     Response, session
 from flask_bootstrap import Bootstrap
 from filters import datetimeformat, file_type
-from resources import get_bucket, get_buckets_list
+
+from dotenv import load_dotenv
+load_dotenv('.env')
+
+from resources import get_bucket, get_buckets_list  # noqa
 
 app = Flask(__name__)
+app.config.from_object(os.getenv('APP_SETTINGS'))
 Bootstrap(app)
-app.secret_key = 'secret'
 app.jinja_env.filters['datetimeformat'] = datetimeformat
 app.jinja_env.filters['file_type'] = file_type
 
@@ -35,7 +40,7 @@ def upload():
     file = request.files['file']
 
     my_bucket = get_bucket()
-    my_bucket.Object(file.filename).put(Body=file)
+    my_bucket.Object("folder/"+file.filename).put(Body=file)
 
     flash('File uploaded successfully')
     return redirect(url_for('files'))
@@ -67,4 +72,4 @@ def download():
 
 
 if __name__ == "__main__":
-    app.run()
+    app.run(debug=True)

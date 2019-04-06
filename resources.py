@@ -1,13 +1,20 @@
 import boto3
-from config import S3_BUCKET, S3_KEY, S3_SECRET
 from flask import session
+import os
+
+S3_KEY = os.getenv('S3_KEY')
+S3_SECRET = os.getenv('S3_SECRET_ACCESS_KEY')
+REGION = os.getenv('REGION')
+S3_BUCKET = os.getenv('S3_BUCKET')
+
 
 def _get_s3_resource():
     if S3_KEY and S3_SECRET:
         return boto3.resource(
             's3',
             aws_access_key_id=S3_KEY,
-            aws_secret_access_key=S3_SECRET
+            aws_secret_access_key=S3_SECRET,
+            region_name=REGION
         )
     else:
         return boto3.resource('s3')
@@ -24,5 +31,5 @@ def get_bucket():
 
 
 def get_buckets_list():
-    client = boto3.client('s3')
-    return client.list_buckets().get('Buckets')
+    s3 = _get_s3_resource()
+    return s3.meta.client.list_buckets().get('Buckets')
