@@ -1,13 +1,18 @@
 import os
-from flask import Flask, render_template, request, redirect, url_for, flash, \
-    Response, session
-from flask_bootstrap import Bootstrap
-from filters import datetimeformat, file_type
+from io import BytesIO
 
 from dotenv import load_dotenv
+from flask import (Flask, Response, flash, redirect, render_template, request,
+                   session, url_for)
+from flask_bootstrap import Bootstrap
+from PIL import Image
+
+from filters import datetimeformat, file_type
+from resources import (_get_s3_client, get_bucket, get_buckets_list,
+                       get_presigned_url)
+
 load_dotenv('.env')
 
-from resources import get_bucket, get_buckets_list  # noqa
 
 app = Flask(__name__)
 app.config.from_object(os.getenv('APP_SETTINGS'))
@@ -31,16 +36,28 @@ def index():
 def files():
     my_bucket = get_bucket()
     summaries = my_bucket.objects.all()
+    image_urls = list()
 
-    return render_template('files.html', my_bucket=my_bucket, files=summaries)
+    s3 = _get_s3_client()
+    for summary in summaries:
+        image_urls.append(get_presigned_url(s3, summary.key))
+
+    return render_template('files.html', my_bucket=my_bucket, files=zip(summaries, image_urls))
 
 
 @app.route('/upload', methods=['POST'])
 def upload():
     file = request.files['file']
+    max_size = 640, 480
+
+    in_mem_file = BytesIO()
+
+    img = Image.open(file)
+    img.thumbnail(max_size, Image.ANTIALIAS)
+    img.save(in_mem_file, format=img.format)
 
     my_bucket = get_bucket()
-    my_bucket.Object("folder/"+file.filename).put(Body=file)
+    my_bucket.Object("folder/"+file.filename).put(Body=in_mem_file.getvalue())
 
     flash('File uploaded successfully')
     return redirect(url_for('files'))
